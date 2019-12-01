@@ -1,5 +1,11 @@
 package artie.sensor.client;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +20,7 @@ import artie.sensor.client.repository.SensorRepository;
 public class ClientApplication implements CommandLineRunner {
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private List<Object> sensorsLoaded = new ArrayList<Object>();
 	
 	@Autowired
 	private SensorRepository sensorRepository;
@@ -24,6 +31,23 @@ public class ClientApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
+		
+		//1- Gets all the sensors from the database
+		List<Sensor> sensorList = sensorRepository.findAll();
+		
+		//2- Loads all sensors in memory
+		sensorList.forEach(sensor -> {
+			
+			try {
+				URLClassLoader library = new URLClassLoader(new URL[] {new URL(sensor.getSensor_file())}, this.getClass().getClassLoader());
+				Class classToLoad = Class.forName(sensor.getSensor_class(), true, library);
+				Object instance = classToLoad.newInstance();
+				sensorsLoaded.add(instance);
+			} catch (MalformedURLException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+				logger.error(e.getMessage());
+			}
+			
+		});
 		
 	}
 
