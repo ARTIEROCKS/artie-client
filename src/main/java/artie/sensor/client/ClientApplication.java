@@ -35,11 +35,10 @@ public class ClientApplication implements CommandLineRunner {
 		//1- Gets all the sensors from the database
 		List<Sensor> sensorList = sensorRepository.findAll();
 		
-		//2- Loads all sensors in memory
-		sensorList.forEach(sensor -> {
-			
+		//2- Loading the class dynamically
+		for(Sensor sensor : sensorList){
 			try {
-				URLClassLoader library = new URLClassLoader(new URL[] {new URL(sensor.getSensor_file())}, this.getClass().getClassLoader());
+				URLClassLoader library = new URLClassLoader(new URL[] {new URL("file://" + sensor.getSensor_file())}, this.getClass().getClassLoader());
 				Class classToLoad = Class.forName(sensor.getSensor_class(), true, library);
 				Object instance = classToLoad.newInstance();
 				sensorsLoaded.add(instance);
@@ -47,8 +46,7 @@ public class ClientApplication implements CommandLineRunner {
 				logger.error(e.getMessage());
 			}
 			
-		});
-		
+		}		
 	}
 
 }
