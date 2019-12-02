@@ -5,6 +5,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.jar.JarFile;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +39,13 @@ public class ClientApplication implements CommandLineRunner {
 		//2- Loading the class dynamically
 		for(Sensor sensor : sensorList){
 			try {
-				URLClassLoader library = new URLClassLoader(new URL[] {new URL("file://" + sensor.getSensor_file())}, this.getClass().getClassLoader());
-				Class classToLoad = Class.forName(sensor.getSensor_class(), true, library);
+				JarFile jarFile = new JarFile(sensor.getSensor_file());
+				URL[] urls = { new URL("jar:file:" + sensor.getSensor_file()+"!/") };
+				URLClassLoader cl = URLClassLoader.newInstance(urls);
+				Class classToLoad = Class.forName(sensor.getSensor_class(), true, cl);
 				Object instance = classToLoad.newInstance();
 				sensorsLoaded.add(instance);
-			} catch (MalformedURLException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+			} catch (MalformedURLException | ClassNotFoundException e) {
 				logger.error(e.getMessage());
 			}
 			
