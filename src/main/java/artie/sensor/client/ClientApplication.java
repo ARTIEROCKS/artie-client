@@ -1,30 +1,19 @@
 package artie.sensor.client;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.jar.JarFile;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import artie.sensor.client.model.Sensor;
-import artie.sensor.client.repository.SensorRepository;
+import artie.sensor.client.enums.ActionEnum;
+import artie.sensor.client.service.SensorService;
 
 @SpringBootApplication
 public class ClientApplication implements CommandLineRunner {
 
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
-	private List<Object> sensorsLoaded = new ArrayList<Object>();
 	
 	@Autowired
-	private SensorRepository sensorRepository;
+	private SensorService sensorService;
 	
 	public static void main(String[] args) {
 		SpringApplication.run(ClientApplication.class, args);
@@ -32,24 +21,28 @@ public class ClientApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
-		
-		//1- Gets all the sensors from the database
-		List<Sensor> sensorList = sensorRepository.findAll();
-		
-		//2- Loading the class dynamically
-		for(Sensor sensor : sensorList){
-			try {
-				JarFile jarFile = new JarFile(sensor.getSensor_file());
-				URL[] urls = { new URL("jar:file:" + sensor.getSensor_file()+"!/") };
-				URLClassLoader cl = URLClassLoader.newInstance(urls);
-				Class classToLoad = Class.forName(sensor.getSensor_class(), true, cl);
-				Object instance = classToLoad.newInstance();
-				sensorsLoaded.add(instance);
-			} catch (MalformedURLException | ClassNotFoundException e) {
-				logger.error(e.getMessage());
-			}
+	
+		//If there are arguments
+		if(args.length > 0){
 			
-		}		
+			//If the action is RUN
+			if(args[0].toUpperCase().equals(ActionEnum.RUN.toString())){
+				this.sensorService.run();
+			}
+			//If the action is ADD
+			else if(args[0].toUpperCase().equals(ActionEnum.ADD.toString())){
+				if(args.length > 1){
+					//Adds the sensor to the system
+					this.sensorService.add(args[1]);
+				}else{
+					System.out.println("ERROR : 1 jar file path is needed after the action to be added");
+				}
+			}
+		}else{
+			//If there are no arguments
+			System.out.println("ERROR: At least 1 action is needed");
+		}
+		
 	}
 
 }
