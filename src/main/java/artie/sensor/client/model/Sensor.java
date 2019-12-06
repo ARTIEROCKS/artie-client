@@ -3,20 +3,20 @@ package artie.sensor.client.model;
 public class Sensor {
 
 	private long id;
-	private String sensor_name;
-	private String sensor_file;
-	private String sensor_class;
+	private String sensorName;
+	private String sensorFile;
+	private String sensorClass;
 	
 	/**
 	 * Default constructor
 	 */
 	public Sensor(){}
 	
-	public Sensor(long id, String sensor_name, String sensor_file, String sensor_class){
+	public Sensor(long id, String sensorName, String sensorFile, String sensorClass){
 		this.id=id;
-		this.sensor_name=sensor_name;
-		this.sensor_file=sensor_file;
-		this.sensor_class=sensor_class;
+		this.sensorName=sensorName;
+		this.sensorFile=sensorFile;
+		this.sensorClass=sensorClass;
 	}
 
 	
@@ -27,25 +27,25 @@ public class Sensor {
 		this.id = id;
 	}
 
-	public String getSensor_name() {
-		return sensor_name;
+	public String getSensorName() {
+		return sensorName;
 	}
-	public void setSensor_name(String sensor_name) {
-		this.sensor_name = sensor_name;
+	public void setSensorName(String sensorName) {
+		this.sensorName = sensorName;
 	}
 
-	public String getSensor_file() {
-		return sensor_file;
+	public String getSensorFile() {
+		return sensorFile;
 	}
-	public void setSensor_file(String sensor_file) {
-		this.sensor_file = sensor_file;
+	public void setSensorFile(String sensorFile) {
+		this.sensorFile = sensorFile;
 	}
 	
-	public String getSensor_class() {
-		return sensor_class;
+	public String getSensorClass() {
+		return sensorClass;
 	}
-	public void setSensor_class(String sensor_class) {
-		this.sensor_class = sensor_class;
+	public void setSensorClass(String sensorClass) {
+		this.sensorClass = sensorClass;
 	}
 	
 }

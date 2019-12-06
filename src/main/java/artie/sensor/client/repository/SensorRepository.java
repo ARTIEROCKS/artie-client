@@ -32,14 +32,14 @@ public class SensorRepository {
 	public int insert(Sensor sensor) {
         return jdbcTemplate.update("insert into sensors (id, sensor_name, sensor_file, sensor_class) " + "values(?, ?, ?, ?)",
             new Object[] {
-                sensor.getId(), sensor.getSensor_name(), sensor.getSensor_file(), sensor.getSensor_class()
+                sensor.getId(), sensor.getSensorName(), sensor.getSensorFile(), sensor.getSensorClass()
             });
     }
 	
 	public int update(Sensor sensor) {
         return jdbcTemplate.update("update sensors " + " set sensor_name = ?, sensor_file = ?, sensor_class = ? " + " where id = ?",
             new Object[] {
-                sensor.getSensor_name(), sensor.getSensor_file(), sensor.getSensor_class(), sensor.getId()
+                sensor.getSensorName(), sensor.getSensorFile(), sensor.getSensorClass(), sensor.getId()
             });
     }
 

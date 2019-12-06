@@ -13,9 +13,9 @@ public class SensorRowMapper implements RowMapper <Sensor> {
 	public Sensor mapRow(ResultSet rs, int rowNum) throws SQLException {
 		Sensor sensor = new Sensor();
 		sensor.setId(rs.getLong("id"));
-		sensor.setSensor_name(rs.getString("sensor_name"));
-		sensor.setSensor_class(rs.getString("sensor_class"));
-		sensor.setSensor_file(rs.getString("sensor_file"));
+		sensor.setSensorName(rs.getString("sensor_name"));
+		sensor.setSensorClass(rs.getString("sensor_class"));
+		sensor.setSensorFile(rs.getString("sensor_file"));
 		return sensor;
 	}
 
