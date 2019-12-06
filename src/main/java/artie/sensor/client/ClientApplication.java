@@ -26,11 +26,11 @@ public class ClientApplication implements CommandLineRunner {
 		if(args.length > 0){
 			
 			//If the action is RUN
-			if(args[0].toUpperCase().equals(ActionEnum.RUN.toString())){
+			if(args[0].equalsIgnoreCase(ActionEnum.RUN.toString())){
 				this.sensorService.run();
 			}
 			//If the action is ADD
-			else if(args[0].toUpperCase().equals(ActionEnum.ADD.toString())){
+			else if(args[0].equalsIgnoreCase(ActionEnum.ADD.toString())){
 				if(args.length > 1){
 					//Adds the sensor to the system
 					this.sensorService.add(args[1]);

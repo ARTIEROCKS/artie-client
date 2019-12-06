@@ -1,15 +1,12 @@
 package artie.sensor.client.service;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,24 +25,39 @@ public class SensorService {
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Object> sensorsLoaded = new ArrayList<Object>();
 	
+	/**
+	 * Add a new sensor to the client
+	 * @param pathToJar
+	 * @throws IOException
+	 */
 	public void add(String pathToJar) throws IOException{
 		
-		JarFile jarFile = new JarFile(pathToJar);
 		URL[] urls = { new URL("jar:file:" + pathToJar+"!/") };
 		URLClassLoader cl = URLClassLoader.newInstance(urls);
-		URL url = cl.findResource("application.properties");
-		Properties prop = new Properties();
-		prop.load(url.openStream());
 		
-		//Getting the test property
-		String rate = prop.getProperty("artie.sensor.keyboardmouse.rate");
-		System.out.println(rate);
+		String[] pathElements = pathToJar.split("/");
+		String pathElement = pathElements[pathElements.length-1];
+		pathElements = pathElement.split("-");
+		
+		String propertiesFileName=pathElements[0];
+		Enumeration<URL> listUrls = cl.getResources(propertiesFileName + ".properties");
+		
+		while(listUrls.hasMoreElements()){
+			URL url = listUrls.nextElement();
+			Properties prop = new Properties();
+			prop.load(url.openStream());
+			
+			//Getting the test property
+			String mainClass = prop.getProperty("artie.sensor.class");
+			
+			//If the main class is not null, we add it in the database
+			
+		}
 	}
 	
-	public void delete(){
-		
-	}
-	
+	/**
+	 * Function to run each sensor added
+	 */
 	public void run(){
 		
 		//1- Gets all the sensors from the database
@@ -54,10 +66,9 @@ public class SensorService {
 		//2- Loading the class dynamically
 		for(Sensor sensor : sensorList){
 			try {
-				JarFile jarFile = new JarFile(sensor.getSensor_file());
-				URL[] urls = { new URL("jar:file:" + sensor.getSensor_file()+"!/") };
+				URL[] urls = { new URL("jar:file:" + sensor.getSensorFile()+"!/") };
 				URLClassLoader cl = URLClassLoader.newInstance(urls);
-				Class classToLoad = Class.forName(sensor.getSensor_class(), true, cl);
+				Class classToLoad = Class.forName(sensor.getSensorClass(), true, cl);
 				Object instance = classToLoad.newInstance();
 				sensorsLoaded.add(instance);
 			} catch (ClassNotFoundException | IOException | InstantiationException | IllegalAccessException e) {
