@@ -6,6 +6,3 @@ CREATE TABLE sensors (
   sensor_file VARCHAR(255) NOT NULL,
   sensor_class VARCHAR(255) NOT NULL
 );
- 
-INSERT INTO sensors (sensor_name, sensor_file, sensor_class) VALUES
-  ('Keyboard And Mouse', '/home/luis/test.jar' ,'KeyboardMouseSensor');

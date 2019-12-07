@@ -29,8 +29,15 @@ public class SensorService {
 	 * Add a new sensor to the client
 	 * @param pathToJar
 	 * @throws IOException
+	 * @throws ClassNotFoundException 
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
+	 * @throws SecurityException 
+	 * @throws NoSuchMethodException 
 	 */
-	public void add(String pathToJar) throws IOException{
+	public void add(String pathToJar) throws IOException, ClassNotFoundException, 
+											 InstantiationException, IllegalAccessException, 
+											 NoSuchMethodException, SecurityException{
 		
 		URL[] urls = { new URL("jar:file:" + pathToJar+"!/") };
 		URLClassLoader cl = URLClassLoader.newInstance(urls);
@@ -47,10 +54,14 @@ public class SensorService {
 			Properties prop = new Properties();
 			prop.load(url.openStream());
 			
-			//Getting the test property
-			String mainClass = prop.getProperty("artie.sensor.class");
+			//Getting the sensor class property
+			String sensorClass = prop.getProperty("artie.sensor.class");
 			
-			//If the main class is not null, we add it in the database
+			//If the sensor class is not null, we add it in the database
+			if (sensorClass != null){
+				Sensor sensor = new Sensor(0, propertiesFileName, pathToJar, sensorClass);
+				sensorRepository.insert(sensor);
+			}
 			
 		}
 	}
