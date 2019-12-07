@@ -1,10 +1,23 @@
 package artie.sensor.client.model;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Entity
 public class Sensor {
 
-	private long id;
+	@Id
+	@Column
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	private Long id;
+	@Column
 	private String sensorName;
+	@Column
 	private String sensorFile;
+	@Column
 	private String sensorClass;
 	
 	/**
@@ -12,7 +25,7 @@ public class Sensor {
 	 */
 	public Sensor(){}
 	
-	public Sensor(long id, String sensorName, String sensorFile, String sensorClass){
+	public Sensor(Long id, String sensorName, String sensorFile, String sensorClass){
 		this.id=id;
 		this.sensorName=sensorName;
 		this.sensorFile=sensorFile;
@@ -23,7 +36,7 @@ public class Sensor {
 	public long getId() {
 		return id;
 	}
-	public void setId(long id) {
+	public void setId(Long id) {
 		this.id = id;
 	}
 
