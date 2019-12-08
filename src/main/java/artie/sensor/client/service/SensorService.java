@@ -1,7 +1,11 @@
 package artie.sensor.client.service;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +26,26 @@ public class SensorService {
 	
 	@Autowired
 	private ApplicationEventPublisher applicationEventPublisher;
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	
 	@Value("${artie.client.minsensorport}")
 	private Long minSensorPort;
+	
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private List<Process> sensorProcessList = new ArrayList<Process>();
+	
+	
+	@PreDestroy
+	private void destroy(){
+		
+		//All the processes will be destroyed
+		for(Process sensorProcess : this.sensorProcessList){
+			if(sensorProcess.isAlive()){
+				sensorProcess.destroyForcibly();
+			}
+		}
+		
+	}
+	
 	
 	/**
 	 * Function to get the next free port in the client system
@@ -81,9 +101,17 @@ public class SensorService {
 		//1- Gets all the sensors from the database
 		List<Sensor> sensorList = (List<Sensor>) sensorRepository.findAll();
 		
-		//2- Loading the class dynamically
+		//3- Running all the sensors with the parameters stored in database
 		for(Sensor sensor : sensorList){
-			
+			try {
+				Process sensorProcess = Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+																	" --server.port=" + sensor.getSensorPort().toString() + 
+																	" --management.server.port=" + sensor.getManagementPort().toString());
+				this.sensorProcessList.add(sensorProcess);
+				
+			} catch (IOException e) {
+				this.logger.error(e.getMessage());
+			}
 		}		
 	}
 }
