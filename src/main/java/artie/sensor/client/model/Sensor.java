@@ -1,29 +1,45 @@
 package artie.sensor.client.model;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Entity
 public class Sensor {
 
-	private long id;
-	private String sensorName;
+	@Id
+	@Column
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	private Long id;
+	@Column
 	private String sensorFile;
-	private String sensorClass;
+	@Column
+	private Long sensorPort;
+	@Column
+	private Long managementPort;
+	@Column
+	private String sensorName;
 	
 	/**
 	 * Default constructor
 	 */
 	public Sensor(){}
 	
-	public Sensor(long id, String sensorName, String sensorFile, String sensorClass){
+	public Sensor(Long id, String sensorFile, Long sensorPort, Long managementPort, String sensorName){
 		this.id=id;
 		this.sensorName=sensorName;
 		this.sensorFile=sensorFile;
-		this.sensorClass=sensorClass;
+		this.sensorPort=sensorPort;
+		this.managementPort=managementPort;
 	}
 
 	
 	public long getId() {
 		return id;
 	}
-	public void setId(long id) {
+	public void setId(Long id) {
 		this.id = id;
 	}
 
@@ -41,11 +57,18 @@ public class Sensor {
 		this.sensorFile = sensorFile;
 	}
 	
-	public String getSensorClass() {
-		return sensorClass;
+	public Long getSensorPort() {
+		return sensorPort;
 	}
-	public void setSensorClass(String sensorClass) {
-		this.sensorClass = sensorClass;
+	public void setSensorPort(Long sensorPort) {
+		this.sensorPort = sensorPort;
+	}
+	
+	public Long getManagementPort(){
+		return managementPort;
+	}
+	public void setManagementPort(Long managementPort){
+		this.managementPort = managementPort;
 	}
 	
 }
