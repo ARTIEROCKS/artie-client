@@ -12,7 +12,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
@@ -32,8 +35,14 @@ public class SensorService {
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Process> sensorProcessList = new ArrayList<Process>();
+	private List<Sensor> sensorList = new ArrayList<Sensor>();
+	private boolean loadingProcessFinished = false;
+	private RestTemplate restTemplate = new RestTemplate();
 	
 	
+	/**
+	 * Function to destroy all the living sensor processes
+	 */
 	@PreDestroy
 	private void destroy(){
 		
@@ -43,7 +52,20 @@ public class SensorService {
 				sensorProcess.destroyForcibly();
 			}
 		}
+	}
+	
+	/**
+	 * Function to add the sensor data
+	 */
+	@Scheduled(fixedRateString="${artie.client.getdata.rate}")
+	private void getData(){
 		
+		//If the loading process has been finished, we get all the data from the sensors
+		if(this.loadingProcessFinished){
+			for(Sensor sensor : sensorList){
+				ResponseEntity<String> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getSensorData", String.class);
+			}
+		}
 	}
 	
 	
@@ -90,11 +112,11 @@ public class SensorService {
 		this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, "Sensor - Add - " + sensorName, true));
 
 		//5- Logging the action
-		this.logger.debug("Sensor - Add - " + sensorName);
+		this.logger.debug("Sensor - Add - " + sensorName + " - OK");
 	}
 	
 	/**
-	 * Function to run each sensor added
+	 * Function to run each sensor added in database
 	 */
 	public void run(){
 		
@@ -108,10 +130,20 @@ public class SensorService {
 																	" --server.port=" + sensor.getSensorPort().toString() + 
 																	" --management.server.port=" + sensor.getManagementPort().toString());
 				this.sensorProcessList.add(sensorProcess);
+				this.sensorList.add(sensor);
+				
+				//Triggering the event
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, "Sensor - Run - " + sensor.getSensorName(), true));
+				
+				//Logging the action
+				this.logger.debug("Sensor - Run - " + sensor.getSensorName() + " - OK");
 				
 			} catch (IOException e) {
 				this.logger.error(e.getMessage());
 			}
-		}		
+		}
+		
+		//Loading process finished
+		this.loadingProcessFinished = true;
 	}
 }

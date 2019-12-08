@@ -4,11 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import artie.sensor.client.enums.ActionEnum;
 import artie.sensor.client.service.SensorService;
 
 @SpringBootApplication
+@EnableScheduling
 public class ClientApplication implements CommandLineRunner {
 
 	
