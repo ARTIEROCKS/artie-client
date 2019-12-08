@@ -9,4 +9,5 @@ import artie.sensor.client.model.Sensor;
 @Repository
 public interface SensorRepository extends CrudRepository<Sensor, Long>{
 	Optional<Sensor> findById(Long id);
+	Optional<Sensor> findByOrderBySensorPortDesc();
 }
