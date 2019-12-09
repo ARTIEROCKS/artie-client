@@ -17,9 +17,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import artie.sensor.client.enums.SensorActionEnum;
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
 import artie.sensor.client.repository.SensorRepository;
+import artie.sensor.common.dto.SensorObject;
 
 @Service
 public class SensorService {
@@ -46,6 +48,17 @@ public class SensorService {
 	@PreDestroy
 	private void destroy(){
 		
+		//Stopping all the sensors
+		for(Sensor sensor : sensorList){
+			this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
+			
+			//Triggering the action
+			this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
+			
+			//Logging the action
+			this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
+		}
+		
 		//All the processes will be destroyed
 		for(Process sensorProcess : this.sensorProcessList){
 			if(sensorProcess.isAlive()){
@@ -63,7 +76,13 @@ public class SensorService {
 		//If the loading process has been finished, we get all the data from the sensors
 		if(this.loadingProcessFinished){
 			for(Sensor sensor : sensorList){
-				ResponseEntity<String> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getSensorData", String.class);
+				
+				//Gets the sensor object
+				ResponseEntity<SensorObject[]> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getSensorData", SensorObject[].class);
+
+				//Triggering the results
+				//this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.READ.toString(), sensor.getSensorName(), response.getBody(), true));
+				System.out.println(response.getBody());
 			}
 		}
 	}
@@ -109,10 +128,10 @@ public class SensorService {
 		this.sensorRepository.save(new Sensor((long) 0, pathToJar, sensorPort, managementPort, sensorName));
 		
 		//4- Triggering the event
-		this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, "Sensor - Add - " + sensorName, true));
+		this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.ADD.toString(), sensorName, true));
 
 		//5- Logging the action
-		this.logger.debug("Sensor - Add - " + sensorName + " - OK");
+		this.logger.debug("Sensor - " + SensorActionEnum.ADD.toString() + " - " + sensorName + " - OK");
 	}
 	
 	/**
@@ -126,17 +145,28 @@ public class SensorService {
 		//3- Running all the sensors with the parameters stored in database
 		for(Sensor sensor : sensorList){
 			try {
+				
+				//1- Running the sensor service
 				Process sensorProcess = Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
 																	" --server.port=" + sensor.getSensorPort().toString() + 
 																	" --management.server.port=" + sensor.getManagementPort().toString());
 				this.sensorProcessList.add(sensorProcess);
 				this.sensorList.add(sensor);
 				
-				//Triggering the event
-				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, "Sensor - Run - " + sensor.getSensorName(), true));
+				//Triggering the action
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.RUN.toString(), sensor.getSensorName(), true));
 				
 				//Logging the action
-				this.logger.debug("Sensor - Run - " + sensor.getSensorName() + " - OK");
+				this.logger.debug("Sensor - " + SensorActionEnum.RUN.toString() + " - " + sensor.getSensorName() + " - OK");
+				
+				//2- Starting the sensor
+				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
+				
+				//Triggering the action
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.START.toString(), sensor.getSensorName(), true));
+				
+				//Logging the action
+				this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
 				
 			} catch (IOException e) {
 				this.logger.error(e.getMessage());

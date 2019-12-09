@@ -16,7 +16,27 @@
 
 	<properties>
 		<java.version>1.8</java.version>
+		<artie.sensor.common.version>0.0.3-SNAPSHOT</artie.sensor.common.version>
 	</properties>
+	
+	<repositories>
+		<repository>
+        	<id>central</id>
+        	<url>https://repo1.maven.org/maven2</url>
+        	<releases><enabled>true</enabled></releases>
+          	<snapshots><enabled>true</enabled></snapshots>
+        </repository>
+        <repository>
+      		<id>artie-snapshots</id>
+      		<name>ARTIE repository</name>
+      		<url>http://nexus.ai-mind.com:8081/nexus/content/repositories/snapshots</url>
+    	</repository>
+    	<repository>
+      		<id>artie-releases</id>
+      		<name>ARTIE repository</name>
+      		<url>http://nexus.ai-mind.com:8081/nexus/content/repositories/releases</url>
+    	</repository>
+  	</repositories>
 
 	<dependencies>
 		<dependency>
@@ -32,7 +52,11 @@
 		    <artifactId>h2</artifactId>
 		    <scope>runtime</scope>
 		</dependency>
-		
+		<dependency>
+		  	<groupId>artie.sensor</groupId>
+		  	<artifactId>common</artifactId>
+		  	<version>${artie.sensor.common.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
