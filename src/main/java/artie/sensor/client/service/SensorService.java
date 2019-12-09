@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.annotation.PreDestroy;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +34,9 @@ public class SensorService {
 	@Value("${artie.client.minsensorport}")
 	private Long minSensorPort;
 	
+	@Value("${artie.client.waitsensorstart}")
+	private Long waitSensorStart;
+	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Process> sensorProcessList = new ArrayList<Process>();
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
@@ -46,7 +48,7 @@ public class SensorService {
 	 * Function to destroy all the living sensor processes
 	 */
 	@PreDestroy
-	private void destroy(){
+	public void destroy(){
 		
 		//Stopping all the sensors
 		for(Sensor sensor : sensorList){
@@ -71,7 +73,7 @@ public class SensorService {
 	 * Function to add the sensor data
 	 */
 	@Scheduled(fixedRateString="${artie.client.getdata.rate}")
-	private void getData(){
+	public void getSensorData(){
 		
 		//If the loading process has been finished, we get all the data from the sensors
 		if(this.loadingProcessFinished){
@@ -79,10 +81,21 @@ public class SensorService {
 				
 				//Gets the sensor object
 				ResponseEntity<SensorObject[]> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getSensorData", SensorObject[].class);
-
+				
+				//Transforming the result from an array to a list
+				SensorObject[] sensorObjects = response.getBody();
+				List<SensorObject> sensorObjectList = new ArrayList<SensorObject>();
+				
+				for(int i=0; i<sensorObjects.length; i++){
+					sensorObjectList.add(sensorObjects[i]);
+				}
+				
 				//Triggering the results
-				//this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.READ.toString(), sensor.getSensorName(), response.getBody(), true));
-				System.out.println(response.getBody());
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.READ.toString(), sensor.getSensorName(), sensorObjectList, true));
+
+				//Logging the results
+				this.logger.debug("Sensor - " + SensorActionEnum.READ.toString() + " - " + sensor.getSensorName() + " - OK");
+				System.out.println("Sensor - " + SensorActionEnum.READ.toString() + " - " + sensor.getSensorName() + " - OK");
 			}
 		}
 	}
@@ -152,6 +165,7 @@ public class SensorService {
 																	" --management.server.port=" + sensor.getManagementPort().toString());
 				this.sensorProcessList.add(sensorProcess);
 				this.sensorList.add(sensor);
+				Thread.sleep(this.waitSensorStart);
 				
 				//Triggering the action
 				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.RUN.toString(), sensor.getSensorName(), true));
@@ -168,7 +182,7 @@ public class SensorService {
 				//Logging the action
 				this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
 				
-			} catch (IOException e) {
+			} catch (IOException | InterruptedException e) {
 				this.logger.error(e.getMessage());
 			}
 		}
