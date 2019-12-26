@@ -36,6 +36,7 @@ public class ClientApplication implements CommandLineRunner {
 				if(args.length > 1){
 					//Adds the sensor to the system
 					this.sensorService.add(args[1]);
+					this.sensorService.run();
 				}else{
 					System.out.println("ERROR : 1 jar file path is needed after the action to be added");
 				}

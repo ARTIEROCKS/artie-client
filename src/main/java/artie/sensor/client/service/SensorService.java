@@ -2,7 +2,9 @@ package artie.sensor.client.service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.annotation.PreDestroy;
@@ -16,11 +18,15 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import artie.sensor.client.enums.SensorActionEnum;
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
 import artie.sensor.client.repository.SensorRepository;
 import artie.sensor.common.dto.SensorObject;
+import artie.sensor.common.enums.ConfigurationEnum;
 
 @Service
 public class SensorService {
@@ -37,8 +43,16 @@ public class SensorService {
 	@Value("${artie.client.waitsensorstart}")
 	private Long waitSensorStart;
 	
+	@Value("${artie.client.kafka.active}")
+	private String kafkaActive;
+	
+	@Value("${artie.client.kafka.topic}")
+	private String kafkaTopic;
+	
+	@Value("${spring.kafka.producer.bootstrap-servers}")
+	private String kafkaServer;
+	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
-	private List<Process> sensorProcessList = new ArrayList<Process>();
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
@@ -50,22 +64,29 @@ public class SensorService {
 	@PreDestroy
 	public void destroy(){
 		
+		//Stops all the sensors
+		this.stopSensors();	
+	}
+	
+	/**
+	 * Function to shutdown all the sensors
+	 */
+	public void stopSensors(){
+		
 		//Stopping all the sensors
 		for(Sensor sensor : sensorList){
+			
+			//1- Stopping the service
 			this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
+			
+			//2- Stopping the springboot
+			this.restTemplate.postForEntity("http://localhost:" + sensor.getManagementPort() + "/actuator/shutdown", "", String.class);
 			
 			//Triggering the action
 			this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
 			
 			//Logging the action
 			this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
-		}
-		
-		//All the processes will be destroyed
-		for(Process sensorProcess : this.sensorProcessList){
-			if(sensorProcess.isAlive()){
-				sensorProcess.destroyForcibly();
-			}
 		}
 	}
 	
@@ -155,15 +176,18 @@ public class SensorService {
 		//1- Gets all the sensors from the database
 		List<Sensor> sensorList = (List<Sensor>) sensorRepository.findAll();
 		
-		//3- Running all the sensors with the parameters stored in database
+		//2- Prepares the configuration
+		Map<String,String> sensorConfiguration = new HashMap<>();
+		ObjectMapper mapper = new ObjectMapper();
+		
+		//2- Running all the sensors with the parameters stored in database
 		for(Sensor sensor : sensorList){
 			try {
 				
-				//1- Running the sensor service
-				Process sensorProcess = Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
-																	" --server.port=" + sensor.getSensorPort().toString() + 
-																	" --management.server.port=" + sensor.getManagementPort().toString());
-				this.sensorProcessList.add(sensorProcess);
+				//2.1- Running the sensor service
+				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+											" --server.port=" + sensor.getSensorPort().toString() + 
+											" --management.server.port=" + sensor.getManagementPort().toString());
 				this.sensorList.add(sensor);
 				Thread.sleep(this.waitSensorStart);
 				
@@ -173,7 +197,27 @@ public class SensorService {
 				//Logging the action
 				this.logger.debug("Sensor - " + SensorActionEnum.RUN.toString() + " - " + sensor.getSensorName() + " - OK");
 				
-				//2- Starting the sensor
+				//2.2- Getting the configuration from the sensor
+				String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
+				
+				try {
+				    //convert JSON string to Map
+					sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
+				} catch (Exception e) {
+				     logger.info("Exception converting {} to map", jsonSensorConfiguration, e);
+				}
+				
+				//2.2- Sets the parameters values in the sensor configuration
+				sensorConfiguration.replace(ConfigurationEnum.KAFKA_SERVER_ACTIVE.toString(), this.kafkaActive);
+				sensorConfiguration.replace(ConfigurationEnum.KAFKA_SERVER.toString(), this.kafkaServer);
+				sensorConfiguration.replace(ConfigurationEnum.KAFKA_TOPIC.toString(), this.kafkaTopic);
+				sensorConfiguration.replace(ConfigurationEnum.KAFKA_KEY.toString(), sensor.getSensorName());
+				
+				
+				//2.3- Sets the new parameters in the sensor configuration
+				this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", sensorConfiguration, Map.class);
+				
+				//2.4- Starting the sensor
 				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
 				
 				//Triggering the action

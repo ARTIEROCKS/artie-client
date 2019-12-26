@@ -10,13 +10,13 @@
 	</parent>
 	<groupId>artie.sensor</groupId>
 	<artifactId>client</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>1.0-RELEASE</version>
 	<name>client</name>
 	<description>ARTIE Client</description>
 
 	<properties>
 		<java.version>1.8</java.version>
-		<artie.sensor.common.version>0.0.3-SNAPSHOT</artie.sensor.common.version>
+		<artie.sensor.common.version>1.0-RELEASE</artie.sensor.common.version>
 	</properties>
 	
 	<repositories>
@@ -46,6 +46,10 @@
 		<dependency>
          	<groupId>org.springframework.boot</groupId>
          	<artifactId>spring-boot-starter-web</artifactId>
+      	</dependency>
+      	<dependency>
+      		<groupId>org.springframework.kafka</groupId>
+      		<artifactId>spring-kafka</artifactId>
       	</dependency>
 		<dependency>
 		    <groupId>com.h2database</groupId>
