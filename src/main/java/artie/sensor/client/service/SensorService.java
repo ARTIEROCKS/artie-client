@@ -13,7 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.ResponseEntity;
+import org.springframework.jms.annotation.JmsListener;
+import org.springframework.jms.core.JmsMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -25,7 +26,6 @@ import artie.sensor.client.enums.SensorActionEnum;
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
 import artie.sensor.client.repository.SensorRepository;
-import artie.sensor.common.dto.SensorObject;
 import artie.sensor.common.enums.ConfigurationEnum;
 
 @Service
@@ -43,13 +43,8 @@ public class SensorService {
 	@Value("${artie.client.waitsensorstart}")
 	private Long waitSensorStart;
 	
-	@Value("${artie.client.kafka.active}")
 	private String kafkaActive;
-	
-	@Value("${artie.client.kafka.topic}")
 	private String kafkaTopic;
-	
-	@Value("${spring.kafka.producer.bootstrap-servers}")
 	private String kafkaServer;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -101,26 +96,14 @@ public class SensorService {
 			for(Sensor sensor : sensorList){
 				
 				//Gets the sensor object
-				ResponseEntity<SensorObject[]> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getSensorData", SensorObject[].class);
-				
-				//Transforming the result from an array to a list
-				SensorObject[] sensorObjects = response.getBody();
-				List<SensorObject> sensorObjectList = new ArrayList<SensorObject>();
-				
-				for(int i=0; i<sensorObjects.length; i++){
-					sensorObjectList.add(sensorObjects[i]);
-				}
-				
-				//Triggering the results
-				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.READ.toString(), sensor.getSensorName(), sensorObjectList, true));
+				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/sendSensorData", String.class);
 
 				//Logging the results
-				this.logger.debug("Sensor - " + SensorActionEnum.READ.toString() + " - " + sensor.getSensorName() + " - OK");
-				System.out.println("Sensor - " + SensorActionEnum.READ.toString() + " - " + sensor.getSensorName() + " - OK");
+				this.logger.debug("Sensor - " + SensorActionEnum.SEND.toString() + " - " + sensor.getSensorName() + " - OK");
+				System.out.println("Sensor - " + SensorActionEnum.SEND.toString() + " - " + sensor.getSensorName() + " - OK");
 			}
 		}
-	}
-	
+	}	
 	
 	/**
 	 * Function to get the next free port in the client system
@@ -233,5 +216,10 @@ public class SensorService {
 		
 		//Loading process finished
 		this.loadingProcessFinished = true;
+	}
+	
+	@JmsListener(destination = "${artie.client.activemq.queue}")
+	public void receiveQueue(String text) {
+		System.out.println("Message Received: "+text);
 	}
 }

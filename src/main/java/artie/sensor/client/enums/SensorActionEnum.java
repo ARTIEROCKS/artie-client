@@ -4,6 +4,7 @@ public enum SensorActionEnum {
 	RUN,
 	ADD,
 	READ,
+	SEND,
 	STOP,
 	START
 }
