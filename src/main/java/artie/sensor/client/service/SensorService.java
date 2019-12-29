@@ -1,6 +1,5 @@
 package artie.sensor.client.service;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,12 +7,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import javax.annotation.PreDestroy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.jms.annotation.JmsListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -41,15 +40,6 @@ public class SensorService {
 	
 	@Value("${artie.client.waitsensorstart}")
 	private Long waitSensorStart;
-	
-	@Value("${artie.client.activemq.active}")
-	private String mqActive;
-	
-	@Value("${artie.client.activemq.queue}")
-	private String mqQueue;
-	
-	@Value("${artie.client.activemq.server}")
-	private String mqServer;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
@@ -159,7 +149,7 @@ public class SensorService {
 	 * Function to run each sensor added in database
 	 */
 	public void run(){
-		
+
 		//1- Gets all the sensors from the database
 		List<Sensor> sensorList = (List<Sensor>) sensorRepository.findAll();
 		
@@ -192,14 +182,12 @@ public class SensorService {
 
 				
 				//2.2- Sets the parameters values in the sensor configuration
-				sensorConfiguration.replace(ConfigurationEnum.MQ_SERVER_ACTIVE.toString(), this.mqActive);
-				sensorConfiguration.replace(ConfigurationEnum.MQ_SERVER.toString(), this.mqServer);
-				sensorConfiguration.replace(ConfigurationEnum.MQ_QUEUE.toString(), this.mqQueue);
+				
 				
 				
 				//2.3- Sets the new parameters in the sensor configuration
-				jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
-				this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+				//jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+				//this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
 				
 				//2.4- Starting the sensor
 				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
@@ -210,7 +198,7 @@ public class SensorService {
 				//Logging the action
 				this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
 				
-			} catch (InterruptedException | IOException e) {
+			} catch (Exception e) {
 				this.logger.error(e.getMessage());
 			}
 		}
@@ -219,8 +207,4 @@ public class SensorService {
 		this.loadingProcessFinished = true;
 	}
 	
-	@JmsListener(destination = "SenderData")
-	public void receiveQueue(String text) {
-		System.out.println("Message Received: "+text);
-	}
 }

@@ -1,10 +1,13 @@
 package artie.sensor.client;
 
+import java.sql.SQLException;
+
+import org.h2.tools.Server;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.jms.annotation.EnableJms;
+import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import artie.sensor.client.enums.ActionEnum;
@@ -12,7 +15,6 @@ import artie.sensor.client.service.SensorService;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableJms
 public class ClientApplication implements CommandLineRunner {
 
 	
@@ -49,5 +51,11 @@ public class ClientApplication implements CommandLineRunner {
 		}
 		
 	}
-
+	
+	@Bean(initMethod = "start", destroyMethod = "stop")
+	public Server inMemoryH2DatabaseaServer() throws SQLException {
+	    return Server.createTcpServer(
+	      "-tcp", "-tcpAllowOthers", "-tcpPort", "9090");
+	}
+	
 }
