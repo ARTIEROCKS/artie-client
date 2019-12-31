@@ -41,6 +41,18 @@ public class SensorService {
 	@Value("${artie.client.waitsensorstart}")
 	private Long waitSensorStart;
 	
+	@Value("${artie.client.datasource.url}")
+	private String sensorDataSourceUrl;
+	
+	@Value("${spring.datasource.driverClassName}")
+	private String dataSourceDriver;
+	
+	@Value("${spring.datasource.username}")
+	private String dataSourceUser;
+	
+	@Value("${spring.datasource.password}")
+	private String dataSourcePasswd;
+	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
 	private boolean loadingProcessFinished = false;
@@ -162,9 +174,9 @@ public class SensorService {
 			try {
 				
 				//2.1- Running the sensor service
-				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+				/*Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
 											" --server.port=" + sensor.getSensorPort().toString() + 
-											" --management.server.port=" + sensor.getManagementPort().toString());
+											" --management.server.port=" + sensor.getManagementPort().toString());*/
 				this.sensorList.add(sensor);
 				Thread.sleep(this.waitSensorStart);
 				
@@ -182,12 +194,15 @@ public class SensorService {
 
 				
 				//2.2- Sets the parameters values in the sensor configuration
-				
+				sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
+				sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
+				sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
+				sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);
 				
 				
 				//2.3- Sets the new parameters in the sensor configuration
-				//jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
-				//this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+				jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+				this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
 				
 				//2.4- Starting the sensor
 				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
