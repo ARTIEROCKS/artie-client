@@ -174,9 +174,9 @@ public class SensorService {
 			try {
 				
 				//2.1- Running the sensor service
-				/*Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
 											" --server.port=" + sensor.getSensorPort().toString() + 
-											" --management.server.port=" + sensor.getManagementPort().toString());*/
+											" --management.server.port=" + sensor.getManagementPort().toString());
 				this.sensorList.add(sensor);
 				Thread.sleep(this.waitSensorStart);
 				
