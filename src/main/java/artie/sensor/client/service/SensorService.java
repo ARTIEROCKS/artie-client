@@ -1,16 +1,16 @@
 package artie.sensor.client.service;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
@@ -22,7 +22,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -65,6 +64,18 @@ public class SensorService {
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
+	
+	
+	@PostConstruct
+	public void init() throws IOException {
+		
+		File file = new File(this.sensorFilePath);
+		if(file.exists()) {
+			//1- Gets all the sensors from the json file
+			Sensor[] sensors = fileService.readSensorJsonFile(this.sensorFilePath);
+			this.sensorList = Arrays.asList(sensors);
+		}
+	}
 	
 	
 	/**
@@ -175,23 +186,20 @@ public class SensorService {
 	 */
 	public void run() throws IOException{
 
-		//1- Gets all the sensors from the database
-		@SuppressWarnings("unchecked")
-		List<Sensor> sensorList = (List<Sensor>) fileService.readJsonFile(this.sensorFilePath);
 		
-		//2- Prepares the configuration
+		
+		//1- Prepares the configuration
 		Map<String,String> sensorConfiguration = new HashMap<>();
 		ObjectMapper mapper = new ObjectMapper();
 		
 		//2- Running all the sensors with the parameters stored in database
-		for(Sensor sensor : sensorList){
+		for(Sensor sensor : this.sensorList){
 			try {
 				
 				//2.1- Running the sensor service
 				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
 											" --server.port=" + sensor.getSensorPort().toString() + 
 											" --management.server.port=" + sensor.getManagementPort().toString());
-				this.sensorList.add(sensor);
 				Thread.sleep(this.waitSensorStart);
 				
 				//Triggering the action
