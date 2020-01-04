@@ -1,6 +1,11 @@
 package artie.sensor.client.service;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,20 +22,17 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import artie.sensor.client.enums.SensorActionEnum;
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
-import artie.sensor.client.repository.SensorRepository;
 import artie.sensor.common.enums.ConfigurationEnum;
 
 @Service
 public class SensorService {
-	
-	@Autowired
-	private SensorRepository sensorRepository;
 	
 	@Autowired
 	private ApplicationEventPublisher applicationEventPublisher;
@@ -52,6 +54,12 @@ public class SensorService {
 	
 	@Value("${spring.datasource.password}")
 	private String dataSourcePasswd;
+	
+	@Value("${artie.client.sensorfile.path}")
+	private String sensorFilePath;
+	
+	@Autowired
+	private FileService fileService;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
@@ -118,13 +126,15 @@ public class SensorService {
 	private Long getNextPort(){
 		
 		Long nextPort = minSensorPort;
+		int sensorListSize = this.sensorList.size();
 		
-		//1- Getting all the sensors ordered by sensor number
-		Optional<Sensor> sensorList = sensorRepository.findByOrderBySensorPortDesc();
+		if(sensorListSize > 0) {
+			
+			//1- Sorting the sensors by their sensor port
+			Collections.sort(this.sensorList, Comparator.comparing(s -> s.getSensorPort()));
 		
-		//2- If there is a sensor added in the system, we set the new sensor port as the lastest one + 10
-		if(sensorList.isPresent()){
-			nextPort = sensorList.get().getSensorPort();
+			//2- If there is a sensor added in the system, we set the new sensor port as the lastest one + 10
+			nextPort = sensorList.get(sensorListSize - 1).getSensorPort();
 			nextPort += 10;
 		}
 		
@@ -134,8 +144,9 @@ public class SensorService {
 	/**
 	 * Add a new sensor to the client
 	 * @param pathToJar
+	 * @throws IOException 
 	 */
-	public void add(String pathToJar){
+	public void add(String pathToJar) throws IOException{
 		
 		//1- Getting the sensor name from the jar file name
 		String[] pathElements = pathToJar.split("/");
@@ -147,8 +158,9 @@ public class SensorService {
 		Long sensorPort = this.getNextPort();
 		Long managementPort = sensorPort + 1;
 		
-		//3- Inserting the sensor in the system
-		this.sensorRepository.save(new Sensor((long) 0, pathToJar, sensorPort, managementPort, sensorName));
+		//3- Inserting the sensor in the file and in the list
+		this.sensorList.add(new Sensor(pathToJar, sensorPort, managementPort, sensorName));
+		this.fileService.writeJsonFile(this.sensorFilePath, this.sensorList);
 		
 		//4- Triggering the event
 		this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.ADD.toString(), sensorName, true));
@@ -159,11 +171,13 @@ public class SensorService {
 	
 	/**
 	 * Function to run each sensor added in database
+	 * @throws IOException 
 	 */
-	public void run(){
+	public void run() throws IOException{
 
 		//1- Gets all the sensors from the database
-		List<Sensor> sensorList = (List<Sensor>) sensorRepository.findAll();
+		@SuppressWarnings("unchecked")
+		List<Sensor> sensorList = (List<Sensor>) fileService.readJsonFile(this.sensorFilePath);
 		
 		//2- Prepares the configuration
 		Map<String,String> sensorConfiguration = new HashMap<>();
