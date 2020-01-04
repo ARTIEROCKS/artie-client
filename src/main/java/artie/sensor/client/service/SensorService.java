@@ -29,6 +29,8 @@ import artie.sensor.client.enums.SensorActionEnum;
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
 import artie.sensor.common.enums.ConfigurationEnum;
+import artie.sensor.common.model.SensorData;
+import artie.sensor.common.repository.SensorDataRepository;
 
 @Service
 public class SensorService {
@@ -59,6 +61,9 @@ public class SensorService {
 	
 	@Autowired
 	private FileService fileService;
+	
+	@Autowired
+	private SensorDataRepository sensorDataRepository;
 	
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
@@ -118,6 +123,22 @@ public class SensorService {
 		
 		//If the loading process has been finished, we get all the data from the sensors
 		if(this.loadingProcessFinished){
+			
+			//1- Gets all the sensor data from the database
+			List<SensorData> sensorDataList = this.sensorDataRepository.findAll();
+			
+			if(sensorDataList.size() > 0) {
+				
+				//2- TODO: Sends all the sensor data by event
+				
+				//3- Deletes the sensor data obtained
+				sensorDataList.forEach(sd -> {
+					this.sensorDataRepository.delete(sd.getId());
+				});
+				
+			}	
+			
+			//4- Requesting to the sensor s to send their data into the database
 			for(Sensor sensor : sensorList){
 				
 				//Gets the sensor object
