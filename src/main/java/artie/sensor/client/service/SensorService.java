@@ -235,9 +235,11 @@ public class SensorService {
 				
 				//2.1- Checks if the service is already alive or not
 				boolean isAlive = false;
+				boolean isStarted = false;
 				try {
 					ResponseEntity<Boolean> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
-					isAlive = (response != null) ? response.getBody() : false; 
+					isAlive = (response != null) ? response.getBody() : false;
+					isStarted = true;
 				} catch(Exception ex) {
 					isAlive = false;
 				}
@@ -276,6 +278,11 @@ public class SensorService {
 					
 					//Logging the action
 					this.logger.debug("Sensor - " + SensorActionEnum.RUN.toString() + " - " + sensor.getSensorName() + " - OK");
+					
+					if(isStarted) {
+						//If the sensor is already started, we first stop it
+						this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
+					}
 					
 					//2.2- Getting the configuration from the sensor
 					String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
