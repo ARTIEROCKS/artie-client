@@ -246,13 +246,7 @@ public class SensorService {
 				//2.1- Checks if the service is already alive or not
 				boolean isAlive = false;
 				boolean isStarted = false;
-				try {
-					ResponseEntity<Boolean> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
-					isAlive = (response != null) ? response.getBody() : false;
-					isStarted = true;
-				} catch(Exception ex) {
-					isAlive = false;
-				}
+				isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
 				
 				//2.1.1- If the sensor is not alive, we run the process
 				if(!isAlive) {
@@ -268,14 +262,7 @@ public class SensorService {
 					while(!isAlive && retryNumber < this.sensorRetries) {
 						
 						Thread.sleep(this.waitSensorStart);
-						
-						try {
-							ResponseEntity<Boolean> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
-							isAlive = (response != null) ? response.getBody() : false; 
-						} catch(Exception ex) {
-							isAlive = false;
-						}
-						
+						isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
 						retryNumber++;
 					}
 				}
@@ -330,6 +317,25 @@ public class SensorService {
 		
 		//Loading process finished
 		this.loadingProcessFinished = true;
+	}
+	
+	
+	/**
+	 * Function to test if the sensor is alive or not
+	 * @return
+	 */
+	private boolean sensorIsAlive(Long sensorPort, String sensorName) {
+		
+		boolean isAlive = false;
+		
+		try {
+			ResponseEntity<Boolean> response = this.restTemplate.getForEntity("http://localhost:" + sensorPort + "/artie/sensor/" + sensorName + "/isAlive", boolean.class);
+			isAlive = (response != null) ? response.getBody() : false; 
+		} catch(Exception ex) {
+			isAlive = false;
+		}
+		
+		return isAlive;
 	}
 	
 }
