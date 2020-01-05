@@ -23,12 +23,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import artie.sensor.client.enums.SensorActionEnum;
 import artie.sensor.client.event.GenericArtieEvent;
 import artie.sensor.client.model.Sensor;
+import artie.sensor.common.dto.SensorObject;
 import artie.sensor.common.enums.ConfigurationEnum;
 import artie.sensor.common.model.SensorData;
 import artie.sensor.common.repository.SensorDataRepository;
@@ -143,17 +145,25 @@ public class SensorService {
 			List<SensorData> sensorDataList = this.sensorDataRepository.findAll();
 			
 			if(sensorDataList.size() > 0) {
-				
-				//2- TODO: Sends all the sensor data by event
-				
-				//3- Deletes the sensor data obtained
+								
+				//2-  Sends all the sensor daya by event, and deletes the sensor data obtained
+				ObjectMapper mapper = new ObjectMapper();
+				List<SensorObject> listSensorObject = new ArrayList<>();
 				sensorDataList.forEach(sd -> {
+					
+					try {
+						listSensorObject.add(mapper.readValue(sd.getData(),new TypeReference<SensorObject>(){}));						
+					} catch (JsonProcessingException e) {
+						this.logger.error(e.getMessage());
+					}
 					this.sensorDataRepository.delete(sd.getId());
 				});
 				
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.SEND.toString(), listSensorObject));
+				
 			}	
 			
-			//4- Requesting to the sensor s to send their data into the database
+			//3- Requesting to the sensor s to send their data into the database
 			for(Sensor sensor : sensorList){
 				
 				//Gets the sensor object
