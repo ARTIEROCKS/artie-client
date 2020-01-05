@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -59,26 +60,37 @@ public class SensorService {
 	@Value("${artie.client.sensorfile.path}")
 	private String sensorFilePath;
 	
+	@Value("${logging.level.root}")
+	private String logginLevelRoot;
+	
+	@Value("${logging.level.artie.sensor}")
+	private String loggingLevelArtieSensor;
+	
 	@Autowired
 	private FileService fileService;
 	
 	@Autowired
 	private SensorDataRepository sensorDataRepository;
 	
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private Logger logger = LoggerFactory.getLogger(SensorService.class);
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
 	
 	
 	@PostConstruct
-	public void init() throws IOException {
+	public void init(){
 		
 		File file = new File(this.sensorFilePath);
 		if(file.exists()) {
 			//1- Gets all the sensors from the json file
-			Sensor[] sensors = fileService.readSensorJsonFile(this.sensorFilePath);
-			this.sensorList = Arrays.asList(sensors);
+			try {
+				Sensor[] sensors = fileService.readSensorJsonFile(this.sensorFilePath);
+				this.sensorList = Arrays.asList(sensors);
+			} catch (IOException e) {
+				this.logger.error(e.getMessage());
+			}
+			
 		}
 	}
 	
@@ -217,11 +229,17 @@ public class SensorService {
 		for(Sensor sensor : this.sensorList){
 			try {
 				
-				//2.1- Running the sensor service
-				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
-											" --server.port=" + sensor.getSensorPort().toString() + 
-											" --management.server.port=" + sensor.getManagementPort().toString());
-				Thread.sleep(this.waitSensorStart);
+				//2.1- Checks if the service is already alive or not
+				ResponseEntity<Boolean> isAlive = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
+				if(isAlive == null || !isAlive.getBody()) {
+					Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+												" --server.port=" + sensor.getSensorPort().toString() + 
+												" --management.server.port=" + sensor.getManagementPort().toString() + 
+												" --logging.level.org.springframework=" + this.logginLevelRoot + 
+												" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor);
+					
+					Thread.sleep(this.waitSensorStart);
+				}
 				
 				//Triggering the action
 				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.RUN.toString(), sensor.getSensorName(), true));
@@ -257,6 +275,7 @@ public class SensorService {
 				this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
 				
 			} catch (Exception e) {
+				
 				this.logger.error(e.getMessage());
 			}
 		}
