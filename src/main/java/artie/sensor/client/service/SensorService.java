@@ -45,6 +45,9 @@ public class SensorService {
 	@Value("${artie.client.waitsensorstart}")
 	private Long waitSensorStart;
 	
+	@Value("${artie.client.sensorretries}")
+	private Long sensorRetries;
+	
 	@Value("${artie.client.datasource.url}")
 	private String sensorDataSourceUrl;
 	
@@ -227,52 +230,80 @@ public class SensorService {
 		
 		//2- Running all the sensors with the parameters stored in database
 		for(Sensor sensor : this.sensorList){
+			
 			try {
 				
 				//2.1- Checks if the service is already alive or not
-				ResponseEntity<Boolean> isAlive = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
-				if(isAlive == null || !isAlive.getBody()) {
+				boolean isAlive = false;
+				try {
+					ResponseEntity<Boolean> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
+					isAlive = (response != null) ? response.getBody() : false; 
+				} catch(Exception ex) {
+					isAlive = false;
+				}
+				
+				//2.1.1- If the sensor is not alive, we run the process
+				if(!isAlive) {
+					
 					Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
 												" --server.port=" + sensor.getSensorPort().toString() + 
 												" --management.server.port=" + sensor.getManagementPort().toString() + 
 												" --logging.level.org.springframework=" + this.logginLevelRoot + 
 												" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor);
 					
-					Thread.sleep(this.waitSensorStart);
+					//Waiting to the sensor be alive
+					int retryNumber = 0;
+					while(!isAlive && retryNumber < this.sensorRetries) {
+						
+						Thread.sleep(this.waitSensorStart);
+						
+						try {
+							ResponseEntity<Boolean> response = this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/isAlive", boolean.class);
+							isAlive = (response != null) ? response.getBody() : false; 
+						} catch(Exception ex) {
+							isAlive = false;
+						}
+						
+						retryNumber++;
+					}
 				}
 				
-				//Triggering the action
-				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.RUN.toString(), sensor.getSensorName(), true));
-				
-				//Logging the action
-				this.logger.debug("Sensor - " + SensorActionEnum.RUN.toString() + " - " + sensor.getSensorName() + " - OK");
-				
-				//2.2- Getting the configuration from the sensor
-				String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
-				
-				//convert JSON string to Map
-				sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
-
-				
-				//2.2- Sets the parameters values in the sensor configuration
-				sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
-				sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
-				sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
-				sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);
-				
-				
-				//2.3- Sets the new parameters in the sensor configuration
-				jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
-				this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
-				
-				//2.4- Starting the sensor
-				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
-				
-				//Triggering the action
-				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.START.toString(), sensor.getSensorName(), true));
-				
-				//Logging the action
-				this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
+				//2.1.2- If the sensor is alive, we start the sensor 
+				if(isAlive) {
+					
+					//Triggering the action
+					this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.RUN.toString(), sensor.getSensorName(), true));
+					
+					//Logging the action
+					this.logger.debug("Sensor - " + SensorActionEnum.RUN.toString() + " - " + sensor.getSensorName() + " - OK");
+					
+					//2.2- Getting the configuration from the sensor
+					String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
+					
+					//convert JSON string to Map
+					sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
+	
+					
+					//2.2- Sets the parameters values in the sensor configuration
+					sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
+					sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
+					sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
+					sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);
+					
+					
+					//2.3- Sets the new parameters in the sensor configuration
+					jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+					this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+					
+					//2.4- Starting the sensor
+					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
+					
+					//Triggering the action
+					this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.START.toString(), sensor.getSensorName(), true));
+					
+					//Logging the action
+					this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
+				}
 				
 			} catch (Exception e) {
 				
