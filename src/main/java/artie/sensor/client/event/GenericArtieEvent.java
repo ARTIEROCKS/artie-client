@@ -37,6 +37,12 @@ public class GenericArtieEvent extends ApplicationEvent {
 		this.data = data;
 		this.success = success;
 	}
+	
+	public GenericArtieEvent(Object source, String action, List<SensorObject> data) {
+		super(source);
+		this.action = action;
+		this.data = data;
+	}
 
 	public String getAction(){
 		return this.action;

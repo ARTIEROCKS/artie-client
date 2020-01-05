@@ -1,9 +1,16 @@
 package artie.sensor.client;
 
+import java.sql.SQLException;
+
+import org.h2.tools.Server;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import artie.sensor.client.enums.ActionEnum;
@@ -11,6 +18,9 @@ import artie.sensor.client.service.SensorService;
 
 @SpringBootApplication
 @EnableScheduling
+@EnableJpaRepositories("artie.sensor")
+@EntityScan("artie.sensor")
+@ComponentScan(basePackages = "artie.sensor")
 public class ClientApplication implements CommandLineRunner {
 
 	
@@ -36,6 +46,7 @@ public class ClientApplication implements CommandLineRunner {
 				if(args.length > 1){
 					//Adds the sensor to the system
 					this.sensorService.add(args[1]);
+					this.sensorService.run();
 				}else{
 					System.out.println("ERROR : 1 jar file path is needed after the action to be added");
 				}
@@ -46,5 +57,11 @@ public class ClientApplication implements CommandLineRunner {
 		}
 		
 	}
-
+	
+	@Bean(initMethod = "start", destroyMethod = "stop")
+	public Server inMemoryH2DatabaseaServer() throws SQLException {
+	    return Server.createTcpServer(
+	      "-tcp", "-tcpAllowOthers", "-tcpPort", "9090");
+	}
+	
 }
