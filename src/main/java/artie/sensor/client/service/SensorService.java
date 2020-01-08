@@ -233,7 +233,6 @@ public class SensorService {
 	public void run() throws IOException{
 
 		
-		
 		//1- Prepares the configuration
 		Map<String,String> sensorConfiguration = new HashMap<>();
 		ObjectMapper mapper = new ObjectMapper();
