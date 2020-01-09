@@ -1,13 +1,16 @@
 package artie.sensor.client.service;
 
 import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SecurityService {
 	
 	private final StandardPBEStringEncryptor encryptor = new StandardPBEStringEncryptor();
-	private final String password = "ArtiEClienT123@";
+	
+	@Value("${jasypt.encryptor.password}")
+	private String password;
 	
 	/**
 	 * Function to encrypt an element
