@@ -56,6 +56,11 @@
 		  	<artifactId>common</artifactId>
 		  	<version>${artie.sensor.common.version}</version>
 		</dependency>
+		<dependency>
+        	<groupId>com.github.ulisesbocchio</groupId>
+        	<artifactId>jasypt-spring-boot-starter</artifactId>
+        	<version>3.0.1</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
