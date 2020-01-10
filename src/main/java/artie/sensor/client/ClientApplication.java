@@ -15,6 +15,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import artie.sensor.client.enums.ActionEnum;
+import artie.sensor.client.service.SecurityService;
 import artie.sensor.client.service.SensorService;
 
 @SpringBootApplication
@@ -29,6 +30,9 @@ public class ClientApplication implements CommandLineRunner {
 	
 	@Autowired
 	private SensorService sensorService;
+	
+	@Autowired
+	private SecurityService securityService;
 	
 	public static void main(String[] args) {
 		SpringApplication.run(ClientApplication.class, args);
@@ -55,6 +59,13 @@ public class ClientApplication implements CommandLineRunner {
 					}else{
 						System.out.println("ERROR : 1 jar file path is needed after the action to be added");
 					}
+				}
+				else if(args[0].equalsIgnoreCase(ActionEnum.ENC.toString())){
+					if(args.length > 1) {
+						System.out.println(this.securityService.encrypt(args[1]));
+					}else {
+						System.out.println("ERROR : 1 string to encrypt is needed");
+					}					
 				}
 			}else{
 				//If there are no arguments
