@@ -60,12 +60,14 @@ public class ClientApplication implements CommandLineRunner {
 						System.out.println("ERROR : 1 jar file path is needed after the action to be added");
 					}
 				}
+				//If we want ton ecrypt, so the action is ENC
 				else if(args[0].equalsIgnoreCase(ActionEnum.ENC.toString())){
 					if(args.length > 1) {
 						System.out.println(this.securityService.encrypt(args[1]));
+						System.exit(0);
 					}else {
 						System.out.println("ERROR : 1 string to encrypt is needed");
-					}					
+					}				
 				}
 			}else{
 				//If there are no arguments
