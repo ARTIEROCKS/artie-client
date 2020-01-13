@@ -9,6 +9,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -34,8 +35,10 @@ public class ClientApplication implements CommandLineRunner {
 	@Autowired
 	private SecurityService securityService;
 	
+	private static ConfigurableApplicationContext ctx;
+	
 	public static void main(String[] args) {
-		SpringApplication.run(ClientApplication.class, args);
+		ctx = SpringApplication.run(ClientApplication.class, args);
 	}
 
 	//@Override
@@ -58,20 +61,28 @@ public class ClientApplication implements CommandLineRunner {
 						this.sensorService.run();
 					}else{
 						System.out.println("ERROR : 1 jar file path is needed after the action to be added");
+						
+						ctx.stop();
+						ctx.close();
 					}
 				}
 				//If we want ton ecrypt, so the action is ENC
 				else if(args[0].equalsIgnoreCase(ActionEnum.ENC.toString())){
 					if(args.length > 1) {
 						System.out.println(this.securityService.encrypt(args[1]));
-						System.exit(0);
 					}else {
 						System.out.println("ERROR : 1 string to encrypt is needed");
-					}				
+					}
+					
+					ctx.stop();
+					ctx.close();
 				}
 			}else{
 				//If there are no arguments
 				System.out.println("ERROR: At least 1 action is needed");
+				
+				ctx.stop();
+				ctx.close();
 			}
 		}
 		
