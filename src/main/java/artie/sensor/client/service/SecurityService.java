@@ -18,7 +18,10 @@ public class SecurityService {
 	 * @return
 	 */
 	public String encrypt(String elementToEncrypt) {
-		this.encryptor.setPassword(password);
+		
+		if(!this.encryptor.isInitialized()) {
+			this.encryptor.setPassword(password);
+		}
 		return this.encryptor.encrypt(elementToEncrypt);
 		
 	}
@@ -29,7 +32,10 @@ public class SecurityService {
 	 * @return
 	 */
 	public String decrypt(String elementToDecrypt) {
-		this.encryptor.setPassword(password);
+		
+		if(!this.encryptor.isInitialized()) {
+			this.encryptor.setPassword(password);
+		}
 		return this.encryptor.decrypt(elementToDecrypt);
 	}
 
