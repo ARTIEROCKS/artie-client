@@ -6,5 +6,6 @@ public enum SensorActionEnum {
 	READ,
 	SEND,
 	STOP,
-	START
+	START,
+	SHUTDOWN
 }
