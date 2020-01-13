@@ -18,6 +18,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -79,6 +82,7 @@ public class SensorService {
 	
 	private Logger logger = LoggerFactory.getLogger(SensorService.class);
 	private List<Sensor> sensorList = new ArrayList<Sensor>();
+	private Map<String, Boolean> runningSensors = new HashMap<>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
 	
@@ -118,17 +122,43 @@ public class SensorService {
 		//Stopping all the sensors
 		for(Sensor sensor : sensorList){
 			
-			//1- Stopping the service
-			this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
-			
-			//2- Stopping the springboot
-			this.restTemplate.postForEntity("http://localhost:" + sensor.getManagementPort() + "/actuator/shutdown", "", String.class);
-			
-			//Triggering the action
-			this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
-			
-			//Logging the action
-			this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
+			//If the sensor is running
+			if(this.runningSensors.get(sensor.getSensorName())) {
+				
+				//1- Stopping the service
+				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
+				boolean isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+				
+				//Waiting to the sensor be down
+				int retryNumber = 0;
+				while(isAlive && retryNumber < this.sensorRetries) {
+					
+					try {
+						Thread.sleep(this.waitSensorStart);
+					} catch (InterruptedException e) {
+						this.logger.error(e.getMessage());
+					}
+					
+					isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+					retryNumber++;
+				}
+				
+				//Triggering and logging the Stop action
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
+				this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
+				
+				//2- Stopping the springboot
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON);
+				HttpEntity<String> entity = new HttpEntity<String>("", headers);
+				this.restTemplate.postForEntity("http://localhost:" + sensor.getManagementPort() + "/actuator/shutdown", entity, String.class);
+				
+				//Triggering and logging the shutdown action
+				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.SHUTDOWN.toString(), sensor.getSensorName(), true));
+				this.logger.debug("Sensor - " + SensorActionEnum.SHUTDOWN.toString() + " - " + sensor.getSensorName() + " - OK");
+				
+				this.runningSensors.replace(sensor.getSensorName(), false);
+			}
 		}
 	}
 	
@@ -163,15 +193,18 @@ public class SensorService {
 				
 			}	
 			
-			//3- Requesting to the sensor s to send their data into the database
+			//3- Requesting to send their data into the database
 			for(Sensor sensor : sensorList){
 				
-				//Gets the sensor object
-				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/sendSensorData", String.class);
-
-				//Logging the results
-				this.logger.debug("Sensor - " + SensorActionEnum.SEND.toString() + " - " + sensor.getSensorName() + " - OK");
-				System.out.println("Sensor - " + SensorActionEnum.SEND.toString() + " - " + sensor.getSensorName() + " - OK");
+				//If the sensor is running
+				if(this.runningSensors.get(sensor.getSensorName())) {
+					//Gets the sensor object
+					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/sendSensorData", String.class);
+	
+					//Logging the results
+					this.logger.debug("Sensor - " + SensorActionEnum.SEND.toString() + " - " + sensor.getSensorName() + " - OK");
+					System.out.println("Sensor - " + SensorActionEnum.SEND.toString() + " - " + sensor.getSensorName() + " - OK");
+				}
 			}
 		}
 	}	
@@ -306,6 +339,9 @@ public class SensorService {
 					
 					//Logging the action
 					this.logger.debug("Sensor - " + SensorActionEnum.START.toString() + " - " + sensor.getSensorName() + " - OK");
+					
+					//Setting the sensor in the running sensor map
+					this.runningSensors.put(sensor.getSensorName(), true);
 				}
 				
 			} catch (Exception e) {
@@ -314,8 +350,8 @@ public class SensorService {
 			}
 		}
 		
-		//Loading process finished
-		this.loadingProcessFinished = true;
+		//Loading process finished if there are at least 1 sensor running
+		this.loadingProcessFinished = this.runningSensors.containsValue(true);
 	}
 	
 	
