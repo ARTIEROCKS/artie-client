@@ -72,7 +72,7 @@ public class GenericArtieEvent extends ApplicationEvent {
 		this.success = success;
 	}
 	
-	public List<SensorObject> gatData(){
+	public List<SensorObject> getData(){
 		return this.data;
 	}
 	public void setData(List<SensorObject> data){
