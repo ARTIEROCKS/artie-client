@@ -48,4 +48,29 @@ public class Sensor {
 		this.managementPort = managementPort;
 	}
 	
+	
+	/**
+	 * Function to test the equality of two objects
+	 */
+	public boolean equals(Object obj) {
+		
+		//If the object is null or the object is not an instance of Sensor
+		if (obj == null) return false;
+	    if (!(obj instanceof Sensor)) return false;
+	    
+	    //If the object is this
+	    if (obj == this) return true;
+	    
+	    //Casting the object
+	    Sensor o = (Sensor) obj;
+	    
+	    //Checks all the attributes of the sensor
+	    return (o.getSensorFile().equals(this.sensorFile) &&
+	    		o.getSensorName().equals(this.sensorName) &&
+	    		o.getSensorPort().equals(this.sensorPort) &&
+	    		o.getManagementPort().equals(this.managementPort));
+		
+	}
+	
+	
 }
