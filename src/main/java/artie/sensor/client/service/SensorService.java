@@ -95,7 +95,7 @@ public class SensorService {
 			//1- Gets all the sensors from the json file
 			try {
 				Sensor[] sensors = fileService.readSensorJsonFile(this.sensorFilePath);
-				this.sensorList = Arrays.asList(sensors);
+				this.sensorList = new ArrayList<>(Arrays.asList(sensors));
 			} catch (IOException e) {
 				this.logger.error(e.getMessage());
 			}
@@ -132,7 +132,7 @@ public class SensorService {
 	public List<Sensor> deleteSensor(Sensor sensor) {
 		
 		//1- Checks if the sensor is running or not
-		if(this.runningSensors.get(sensor.getSensorName())) {
+		if(this.runningSensors != null && this.runningSensors.size() > 0 && this.runningSensors.get(sensor.getSensorName())) {
 			
 			//1.1- Stops the service
 			this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
