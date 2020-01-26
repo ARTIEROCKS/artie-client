@@ -78,6 +78,11 @@ public class ClientApplication implements CommandLineRunner {
 					ctx.close();
 				}
 			}else{
+				
+				
+				this.sensorService.run();
+				this.sensorService.getAllSensorsConfiguration();
+				
 				//If there are no arguments
 				System.out.println("ERROR: At least 1 action is needed");
 				
