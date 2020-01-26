@@ -85,6 +85,7 @@ public class SensorService {
 	private Map<String, Boolean> runningSensors = new HashMap<>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
+	private Map<Sensor, Map<String,String>> sensorsConfiguration = new HashMap<>();
 	
 	
 	@PostConstruct
@@ -123,53 +124,12 @@ public class SensorService {
 		return this.sensorList;	
 	}
 	
-
 	/**
-	 * Function to delete a sensor from the list a return the list again
-	 * @param sensor
+	 * Function to get the configuration set in all the sensors
 	 * @return
 	 */
-	public List<Sensor> deleteSensor(Sensor sensor) {
-		
-		//1- Checks if the sensor is running or not
-		if(this.runningSensors != null && this.runningSensors.size() > 0 && this.runningSensors.get(sensor.getSensorName())) {
-			
-			//1.1- Stops the service
-			this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
-			boolean isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
-			
-			//1.2- Waiting to the sensor be down
-			int retryNumber = 0;
-			while(isAlive && retryNumber < this.sensorRetries) {
-				
-				try {
-					Thread.sleep(this.waitSensorStart);
-				} catch (InterruptedException e) {
-					this.logger.error(e.getMessage());
-				}
-				
-				isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
-				retryNumber++;
-			}
-		}
-		
-		//When the sensor is down, we delete from the list and we save again the list
-		this.sensorList.remove(sensor);
-		
-		try {
-			this.fileService.writeJsonFile(this.sensorFilePath, this.sensorList);
-		} catch (IOException e) {
-			this.logger.error(e.getMessage());
-		}
-		
-		//2- Triggering the event
-		this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.DEL.toString(), sensor.getSensorName(), true));
-
-		//3- Logging the action
-		this.logger.debug("Sensor - " + SensorActionEnum.DEL.toString() + " - " + sensor.getSensorName() + " - OK");
-		
-		
-		return this.sensorList;
+	public Map<Sensor, Map<String,String>> getAllSensorsConfiguration(){
+		return this.sensorsConfiguration;
 	}
 	
 	
@@ -383,14 +343,16 @@ public class SensorService {
 					sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
 					sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
 					sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
-					sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);
-					
+					sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);					
 					
 					//2.3- Sets the new parameters in the sensor configuration
 					jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
 					this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
 					
-					//2.4- Starting the sensor
+					//2.4- Adds the sensor configuration to the existing map
+					this.sensorsConfiguration.put(sensor, sensorConfiguration);
+					
+					//2.5- Starting the sensor
 					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
 					
 					//Triggering the action
@@ -413,6 +375,54 @@ public class SensorService {
 		this.loadingProcessFinished = this.runningSensors.containsValue(true);
 	}
 	
+	
+	/**
+	 * Function to delete a sensor from the list a return the list again
+	 * @param sensor
+	 * @return
+	 */
+	public List<Sensor> deleteSensor(Sensor sensor) {
+		
+		//1- Checks if the sensor is running or not
+		if(this.runningSensors != null && this.runningSensors.size() > 0 && this.runningSensors.get(sensor.getSensorName())) {
+			
+			//1.1- Stops the service
+			this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
+			boolean isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+			
+			//1.2- Waiting to the sensor be down
+			int retryNumber = 0;
+			while(isAlive && retryNumber < this.sensorRetries) {
+				
+				try {
+					Thread.sleep(this.waitSensorStart);
+				} catch (InterruptedException e) {
+					this.logger.error(e.getMessage());
+				}
+				
+				isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+				retryNumber++;
+			}
+		}
+		
+		//When the sensor is down, we delete from the list and we save again the list
+		this.sensorList.remove(sensor);
+		
+		try {
+			this.fileService.writeJsonFile(this.sensorFilePath, this.sensorList);
+		} catch (IOException e) {
+			this.logger.error(e.getMessage());
+		}
+		
+		//2- Triggering the event
+		this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.DEL.toString(), sensor.getSensorName(), true));
+
+		//3- Logging the action
+		this.logger.debug("Sensor - " + SensorActionEnum.DEL.toString() + " - " + sensor.getSensorName() + " - OK");
+		
+		
+		return this.sensorList;
+	}
 	
 	/**
 	 * Function to test if the sensor is alive or not
