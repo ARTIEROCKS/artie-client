@@ -85,7 +85,7 @@ public class SensorService {
 	private Map<String, Boolean> runningSensors = new HashMap<>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
-	private Map<Sensor, Map<String,String>> sensorsConfiguration = new HashMap<>();
+	private Map<String, Map<String,String>> sensorsConfiguration = new HashMap<>();
 	
 	
 	@PostConstruct
@@ -128,7 +128,7 @@ public class SensorService {
 	 * Function to get the configuration set in all the sensors
 	 * @return
 	 */
-	public Map<Sensor, Map<String,String>> getAllSensorsConfiguration(){
+	public Map<String, Map<String,String>> getAllSensorsConfiguration(){
 		return this.sensorsConfiguration;
 	}
 	
@@ -350,7 +350,7 @@ public class SensorService {
 					this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
 					
 					//2.4- Adds the sensor configuration to the existing map
-					this.sensorsConfiguration.put(sensor, sensorConfiguration);
+					this.sensorsConfiguration.put(sensor.getSensorName(), sensorConfiguration);
 					
 					//2.5- Starting the sensor
 					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
