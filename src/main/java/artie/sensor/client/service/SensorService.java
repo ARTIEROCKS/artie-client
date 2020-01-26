@@ -97,7 +97,8 @@ public class SensorService {
 			try {
 				Sensor[] sensors = fileService.readSensorJsonFile(this.sensorFilePath);
 				this.sensorList = new ArrayList<>(Arrays.asList(sensors));
-			} catch (IOException e) {
+				this.startUpSensorServices();
+			} catch (IOException | InterruptedException e) {
 				this.logger.error(e.getMessage());
 			}
 			
@@ -115,6 +116,42 @@ public class SensorService {
 		this.stopSensors();	
 	}
 	
+	
+	/**
+	 * Method to start the sensor services
+	 * @throws IOException 
+	 * @throws InterruptedException 
+	 */
+	private void startUpSensorServices() throws IOException, InterruptedException {
+		
+		for(Sensor sensor : this.sensorList){
+			
+			//1- Checks if the service is already alive or not
+			boolean isAlive = false;
+			boolean isStarted = false;
+			isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+			
+			//2- If the sensor is not alive, we run the process
+			if(!isAlive) {
+				
+				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+											" --server.port=" + sensor.getSensorPort().toString() + 
+											" --management.server.port=" + sensor.getManagementPort().toString() + 
+											" --logging.level.org.springframework=" + this.logginLevelRoot + 
+											" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor);
+				
+				//Waiting to the sensor be alive
+				int retryNumber = 0;
+				while(!isAlive && retryNumber < this.sensorRetries) {
+					
+					Thread.sleep(this.waitSensorStart);
+					isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+					retryNumber++;
+				}
+			}
+		}
+		
+	}
 	
 	
 	/**
