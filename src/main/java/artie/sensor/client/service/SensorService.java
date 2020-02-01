@@ -195,6 +195,34 @@ public class SensorService {
 		return this.sensorsConfiguration;
 	}
 	
+	/**
+	 * Function to set the configuration of all the sensors
+	 * @param configuration
+	 * @throws JsonProcessingException 
+	 */
+	public void setAllSensorsConfiguration(Map<String,Map<String,String>> configuration) throws JsonProcessingException {
+				
+		Map<String,String> sensorConfiguration = null;
+		String jsonSensorConfiguration = "";
+		ObjectMapper mapper = new ObjectMapper();
+		
+		
+		//Sets the configuration of all the sensors
+		for(Sensor sensor : this.sensorList){
+			
+			//Gets the configuration of the sensor
+			sensorConfiguration = this.sensorsConfiguration.get(sensor.getSensorName());
+			
+			//Converts the configuration to string
+			jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+			
+			//Sends the configuration to the sensor
+			this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+			
+		}
+		
+		this.sensorsConfiguration = configuration;
+	}
 	
 	/**
 	 * Function to shutdown all the sensors
