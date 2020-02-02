@@ -85,7 +85,7 @@ public class SensorService {
 	private Map<String, Boolean> runningSensors = new HashMap<>();
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
-	private Map<Sensor, Map<String,String>> sensorsConfiguration = new HashMap<>();
+	private Map<String, Map<String,String>> sensorsConfiguration = new HashMap<>();
 	
 	
 	@PostConstruct
@@ -97,7 +97,8 @@ public class SensorService {
 			try {
 				Sensor[] sensors = fileService.readSensorJsonFile(this.sensorFilePath);
 				this.sensorList = new ArrayList<>(Arrays.asList(sensors));
-			} catch (IOException e) {
+				this.startUpSensorServices();
+			} catch (IOException | InterruptedException e) {
 				this.logger.error(e.getMessage());
 			}
 			
@@ -116,6 +117,68 @@ public class SensorService {
 	}
 	
 	
+	/**
+	 * Method to start the sensor services
+	 * @throws IOException 
+	 * @throws InterruptedException 
+	 */
+	private void startUpSensorServices() throws IOException, InterruptedException {
+		
+		ObjectMapper mapper = new ObjectMapper();
+		
+		for(Sensor sensor : this.sensorList){
+			
+			//1- Checks if the service is already alive or not
+			boolean isAlive = false;
+			isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+			
+			//2- If the sensor is not alive, we run the process
+			if(!isAlive) {
+				
+				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+											" --server.port=" + sensor.getSensorPort().toString() + 
+											" --management.server.port=" + sensor.getManagementPort().toString() + 
+											" --logging.level.org.springframework=" + this.logginLevelRoot + 
+											" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor);
+				
+				//Waiting to the sensor be alive
+				int retryNumber = 0;
+				while(!isAlive && retryNumber < this.sensorRetries) {
+					
+					Thread.sleep(this.waitSensorStart);
+					isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+					retryNumber++;
+				}
+			}
+			
+			//If the sensor is we get and set the configuration
+			if(isAlive) {
+				
+				//2.1- Getting the configuration from the sensor
+				String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
+				
+				//convert JSON string to Map
+				Map<String,String> sensorConfiguration = new HashMap<>();
+				sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
+
+				
+				//2.2- Sets the parameters values in the sensor configuration
+				sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
+				sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
+				sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
+				sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);					
+				
+				//2.3- Sets the new parameters in the sensor configuration
+				jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+				this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+				
+				//2.4- Adds the sensor configuration to the existing map
+				this.sensorsConfiguration.put(sensor.getSensorName(), sensorConfiguration);
+			}
+		}
+		
+	}
+	
 	
 	/**
 	 * Get all the sensors
@@ -128,10 +191,38 @@ public class SensorService {
 	 * Function to get the configuration set in all the sensors
 	 * @return
 	 */
-	public Map<Sensor, Map<String,String>> getAllSensorsConfiguration(){
+	public Map<String, Map<String,String>> getAllSensorsConfiguration(){
 		return this.sensorsConfiguration;
 	}
 	
+	/**
+	 * Function to set the configuration of all the sensors
+	 * @param configuration
+	 * @throws JsonProcessingException 
+	 */
+	public void setAllSensorsConfiguration(Map<String,Map<String,String>> configuration) throws JsonProcessingException {
+				
+		Map<String,String> sensorConfiguration = null;
+		String jsonSensorConfiguration = "";
+		ObjectMapper mapper = new ObjectMapper();
+		
+		
+		//Sets the configuration of all the sensors
+		for(Sensor sensor : this.sensorList){
+			
+			//Gets the configuration of the sensor
+			sensorConfiguration = this.sensorsConfiguration.get(sensor.getSensorName());
+			
+			//Converts the configuration to string
+			jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+			
+			//Sends the configuration to the sensor
+			this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+			
+		}
+		
+		this.sensorsConfiguration = configuration;
+	}
 	
 	/**
 	 * Function to shutdown all the sensors
@@ -284,41 +375,17 @@ public class SensorService {
 	 */
 	public void run() throws IOException{
 
-		
-		//1- Prepares the configuration
-		Map<String,String> sensorConfiguration = new HashMap<>();
-		ObjectMapper mapper = new ObjectMapper();
-		
-		//2- Running all the sensors with the parameters stored in database
+				
+		//1- Running all the sensors with the parameters stored in database
 		for(Sensor sensor : this.sensorList){
 			
 			try {
 				
-				//2.1- Checks if the service is already alive or not
-				boolean isAlive = false;
-				boolean isStarted = false;
-				isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+				//Starts the service and checks if the sensor is alive or not
+				this.startUpSensorServices();
+				boolean isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
 				
-				//2.1.1- If the sensor is not alive, we run the process
-				if(!isAlive) {
-					
-					Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
-												" --server.port=" + sensor.getSensorPort().toString() + 
-												" --management.server.port=" + sensor.getManagementPort().toString() + 
-												" --logging.level.org.springframework=" + this.logginLevelRoot + 
-												" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor);
-					
-					//Waiting to the sensor be alive
-					int retryNumber = 0;
-					while(!isAlive && retryNumber < this.sensorRetries) {
-						
-						Thread.sleep(this.waitSensorStart);
-						isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
-						retryNumber++;
-					}
-				}
-				
-				//2.1.2- If the sensor is alive, we start the sensor 
+				//2- If the sensor is alive, we start the sensor 
 				if(isAlive) {
 					
 					//Triggering the action
@@ -327,32 +394,13 @@ public class SensorService {
 					//Logging the action
 					this.logger.debug("Sensor - " + SensorActionEnum.RUN.toString() + " - " + sensor.getSensorName() + " - OK");
 					
-					if(isStarted) {
+					//If the sensor is started
+					if(this.runningSensors.containsKey(sensor.getSensorName()) && this.runningSensors.get(sensor.getSensorName())) {
 						//If the sensor is already started, we first stop it
 						this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
 					}
 					
-					//2.2- Getting the configuration from the sensor
-					String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
-					
-					//convert JSON string to Map
-					sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
-	
-					
-					//2.2- Sets the parameters values in the sensor configuration
-					sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
-					sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
-					sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
-					sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);					
-					
-					//2.3- Sets the new parameters in the sensor configuration
-					jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
-					this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
-					
-					//2.4- Adds the sensor configuration to the existing map
-					this.sensorsConfiguration.put(sensor, sensorConfiguration);
-					
-					//2.5- Starting the sensor
+					//2.1- Starting the sensor
 					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/start", String.class);
 					
 					//Triggering the action
