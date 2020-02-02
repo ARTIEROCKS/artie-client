@@ -113,7 +113,7 @@ public class SensorService {
 	public void destroy(){
 		
 		//Stops all the sensors
-		this.stopSensors();	
+		this.stopSensors(true);	
 	}
 	
 	
@@ -225,15 +225,16 @@ public class SensorService {
 	}
 	
 	/**
-	 * Function to shutdown all the sensors
+	 * Function to stop the sensors
+	 * @param shutdown shutdowns the springboot process
 	 */
-	public void stopSensors(){
+	public void stopSensors(boolean shutdown){
 		
 		//Stopping all the sensors
 		for(Sensor sensor : sensorList){
 			
 			//If the sensor is running
-			if(this.runningSensors.get(sensor.getSensorName())) {
+			if(this.runningSensors.containsKey(sensor.getSensorName()) && this.runningSensors.get(sensor.getSensorName())) {
 				
 				//1- Stopping the service
 				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
@@ -257,17 +258,19 @@ public class SensorService {
 				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
 				this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
 				
+				this.runningSensors.replace(sensor.getSensorName(), false);
+			}
+			
+			if(shutdown) {
 				//2- Stopping the springboot
 				HttpHeaders headers = new HttpHeaders();
 				headers.setContentType(MediaType.APPLICATION_JSON);
 				HttpEntity<String> entity = new HttpEntity<String>("", headers);
 				this.restTemplate.postForEntity("http://localhost:" + sensor.getManagementPort() + "/actuator/shutdown", entity, String.class);
-				
+			
 				//Triggering and logging the shutdown action
 				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.SHUTDOWN.toString(), sensor.getSensorName(), true));
 				this.logger.debug("Sensor - " + SensorActionEnum.SHUTDOWN.toString() + " - " + sensor.getSensorName() + " - OK");
-				
-				this.runningSensors.replace(sensor.getSensorName(), false);
 			}
 		}
 	}
