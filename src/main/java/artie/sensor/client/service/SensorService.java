@@ -149,31 +149,31 @@ public class SensorService {
 					isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
 					retryNumber++;
 				}
+			}
+			
+			//If the sensor is we get and set the configuration
+			if(isAlive) {
 				
-				//If the sensor is we get and set the configuration
-				if(isAlive) {
-					
-					//2.1- Getting the configuration from the sensor
-					String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
-					
-					//convert JSON string to Map
-					Map<String,String> sensorConfiguration = new HashMap<>();
-					sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
-	
-					
-					//2.2- Sets the parameters values in the sensor configuration
-					sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
-					sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
-					sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
-					sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);					
-					
-					//2.3- Sets the new parameters in the sensor configuration
-					jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
-					this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
-					
-					//2.4- Adds the sensor configuration to the existing map
-					this.sensorsConfiguration.put(sensor.getSensorName(), sensorConfiguration);
-				}
+				//2.1- Getting the configuration from the sensor
+				String jsonSensorConfiguration = this.restTemplate.getForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/getConfiguration", String.class);
+				
+				//convert JSON string to Map
+				Map<String,String> sensorConfiguration = new HashMap<>();
+				sensorConfiguration = mapper.readValue(jsonSensorConfiguration, new TypeReference<HashMap<String,String>>(){});
+
+				
+				//2.2- Sets the parameters values in the sensor configuration
+				sensorConfiguration.replace(ConfigurationEnum.DB_URL.toString(), this.sensorDataSourceUrl);
+				sensorConfiguration.replace(ConfigurationEnum.DB_DRIVER_CLASS.toString(), this.dataSourceDriver);
+				sensorConfiguration.replace(ConfigurationEnum.DB_USER.toString(), this.dataSourceUser);
+				sensorConfiguration.replace(ConfigurationEnum.DB_PASSWD.toString(), this.dataSourcePasswd);					
+				
+				//2.3- Sets the new parameters in the sensor configuration
+				jsonSensorConfiguration = mapper.writeValueAsString(sensorConfiguration);
+				this.restTemplate.postForObject("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/configuration", jsonSensorConfiguration, String.class);
+				
+				//2.4- Adds the sensor configuration to the existing map
+				this.sensorsConfiguration.put(sensor.getSensorName(), sensorConfiguration);
 			}
 		}
 		
