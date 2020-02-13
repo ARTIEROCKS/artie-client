@@ -86,7 +86,7 @@ public class SensorService {
 	private boolean loadingProcessFinished = false;
 	private RestTemplate restTemplate = new RestTemplate();
 	private Map<String, Map<String,String>> sensorsConfiguration = new HashMap<>();
-	
+	private List<Process> processList = new ArrayList<>();	
 	
 	@PostConstruct
 	public void init(){
@@ -135,11 +135,11 @@ public class SensorService {
 			//2- If the sensor is not alive, we run the process
 			if(!isAlive) {
 				
-				Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
+				this.processList.add(Runtime.getRuntime().exec("java -jar " + sensor.getSensorFile() + 
 											" --server.port=" + sensor.getSensorPort().toString() + 
 											" --management.server.port=" + sensor.getManagementPort().toString() + 
 											" --logging.level.org.springframework=" + this.logginLevelRoot + 
-											" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor);
+											" --logging.level.artie.sensor=" + this.loggingLevelArtieSensor));
 				
 				//Waiting to the sensor be alive
 				int retryNumber = 0;
@@ -230,47 +230,61 @@ public class SensorService {
 	 */
 	public void stopSensors(boolean shutdown){
 		
-		//Stopping all the sensors
-		for(Sensor sensor : sensorList){
+		//If the processes has been started in this process, we destroy them
+		if(this.processList.size() > 0) {
 			
-			//If the sensor is running
-			if(this.runningSensors.containsKey(sensor.getSensorName()) && this.runningSensors.get(sensor.getSensorName())) {
+			this.processList.forEach(p -> {
+				if(p.isAlive()) {
+					p.destroy();
+				}
+			});
+			
+			//we clean the process list
+			this.processList.clear();
+						
+		}else {
+			//If the sensors have been started in another process we stop all the sensors
+			for(Sensor sensor : sensorList){
 				
-				//1- Stopping the service
-				this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
-				boolean isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
-				
-				//Waiting to the sensor be down
-				int retryNumber = 0;
-				while(isAlive && retryNumber < this.sensorRetries) {
+				//If the sensor is running
+				if(this.runningSensors.containsKey(sensor.getSensorName()) && this.runningSensors.get(sensor.getSensorName())) {
 					
-					try {
-						Thread.sleep(this.waitSensorStart);
-					} catch (InterruptedException e) {
-						this.logger.error(e.getMessage());
+					//1- Stopping the service
+					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/stop", String.class);
+					boolean isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+					
+					//Waiting to the sensor be down
+					int retryNumber = 0;
+					while(isAlive && retryNumber < this.sensorRetries) {
+						
+						try {
+							Thread.sleep(this.waitSensorStart);
+						} catch (InterruptedException e) {
+							this.logger.error(e.getMessage());
+						}
+						
+						isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
+						retryNumber++;
 					}
 					
-					isAlive = this.sensorIsAlive(sensor.getSensorPort(), sensor.getSensorName());
-					retryNumber++;
+					//Triggering and logging the Stop action
+					this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
+					this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
+					
+					this.runningSensors.replace(sensor.getSensorName(), false);
 				}
 				
-				//Triggering and logging the Stop action
-				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.STOP.toString(), sensor.getSensorName(), true));
-				this.logger.debug("Sensor - " + SensorActionEnum.STOP.toString() + " - " + sensor.getSensorName() + " - OK");
+				if(shutdown) {
+					//2- Stopping the springboot
+					HttpHeaders headers = new HttpHeaders();
+					headers.setContentType(MediaType.APPLICATION_JSON);
+					HttpEntity<String> entity = new HttpEntity<String>("", headers);
+					this.restTemplate.postForEntity("http://localhost:" + sensor.getManagementPort() + "/actuator/shutdown", entity, String.class);
 				
-				this.runningSensors.replace(sensor.getSensorName(), false);
-			}
-			
-			if(shutdown) {
-				//2- Stopping the springboot
-				HttpHeaders headers = new HttpHeaders();
-				headers.setContentType(MediaType.APPLICATION_JSON);
-				HttpEntity<String> entity = new HttpEntity<String>("", headers);
-				this.restTemplate.postForEntity("http://localhost:" + sensor.getManagementPort() + "/actuator/shutdown", entity, String.class);
-			
-				//Triggering and logging the shutdown action
-				this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.SHUTDOWN.toString(), sensor.getSensorName(), true));
-				this.logger.debug("Sensor - " + SensorActionEnum.SHUTDOWN.toString() + " - " + sensor.getSensorName() + " - OK");
+					//Triggering and logging the shutdown action
+					this.applicationEventPublisher.publishEvent(new GenericArtieEvent(this, SensorActionEnum.SHUTDOWN.toString(), sensor.getSensorName(), true));
+					this.logger.debug("Sensor - " + SensorActionEnum.SHUTDOWN.toString() + " - " + sensor.getSensorName() + " - OK");
+				}
 			}
 		}
 	}
@@ -424,6 +438,7 @@ public class SensorService {
 		
 		//Loading process finished if there are at least 1 sensor running
 		this.loadingProcessFinished = this.runningSensors.containsValue(true);
+		
 	}
 	
 	
