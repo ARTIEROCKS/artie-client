@@ -241,6 +241,10 @@ public class SensorService {
 			
 			//we clean the process list
 			this.processList.clear();
+			
+			//we clear the running sensors
+			this.runningSensors.clear();
+			
 						
 		}else {
 			//If the sensors have been started in another process we stop all the sensors
@@ -303,7 +307,7 @@ public class SensorService {
 			
 			if(sensorDataList.size() > 0) {
 								
-				//2-  Sends all the sensor daya by event, and deletes the sensor data obtained
+				//2-  Sends all the sensor data by event, and deletes the sensor data obtained
 				ObjectMapper mapper = new ObjectMapper();
 				List<SensorObject> listSensorObject = new ArrayList<>();
 				sensorDataList.forEach(sd -> {
@@ -324,7 +328,7 @@ public class SensorService {
 			for(Sensor sensor : sensorList){
 				
 				//If the sensor is running
-				if(this.runningSensors.get(sensor.getSensorName())) {
+				if(this.runningSensors.size() > 0 && this.runningSensors.get(sensor.getSensorName())) {
 					//Gets the sensor object
 					this.restTemplate.getForEntity("http://localhost:" + sensor.getSensorPort() + "/artie/sensor/" + sensor.getSensorName() + "/sendSensorData", String.class);
 	
