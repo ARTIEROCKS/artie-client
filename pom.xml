@@ -19,16 +19,13 @@
 		<artie.sensor.common.version>1.0-RELEASE</artie.sensor.common.version>
 	</properties>
 	<repositories>
-        <repository>
-      		<id>artie-snapshots</id>
-      		<name>ARTIE repository</name>
-      		<url>http://nexus.ai-mind.com:8081/nexus/content/repositories/snapshots</url>
-    	</repository>
+       
     	<repository>
       		<id>artie-releases</id>
       		<name>ARTIE repository</name>
       		<url>http://nexus.ai-mind.com:8081/nexus/content/repositories/releases</url>
     	</repository>
+		
   	</repositories>
 
 	<dependencies>
