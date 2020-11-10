@@ -19,13 +19,6 @@
 		<artie.sensor.common.version>1.0-RELEASE</artie.sensor.common.version>
 	</properties>
 	
-	<repositories>
-		<repository>
-        	<id>central</id>
-        	<url>https://repo1.maven.org/maven2</url>
-        	<releases><enabled>true</enabled></releases>
-          	<snapshots><enabled>true</enabled></snapshots>
-        </repository>
         <repository>
       		<id>artie-snapshots</id>
       		<name>ARTIE repository</name>
